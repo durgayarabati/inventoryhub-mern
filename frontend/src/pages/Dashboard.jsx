@@ -1,9 +1,10 @@
-const Dashboard = () => (
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div className="bg-white p-4 rounded-xl shadow">Total Products</div>
-    <div className="bg-white p-4 rounded-xl shadow">Low Stock</div>
-    <div className="bg-white p-4 rounded-xl shadow">Out of Stock</div>
-  </div>
-);
-
-export default Dashboard;
+export default function Dashboard() {
+  return (
+    <div>
+      <h2 className="text-xl font-bold">Dashboard</h2>
+      <p className="text-gray-600 mt-2">
+        Next: show counts (products, low stock, orders) from backend.
+      </p>
+    </div>
+  );
+}
