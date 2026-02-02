@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Signup"
 import Dashboard from "./pages/Dashboard";
-import Products from "./pages/Products";
-import orders from "./pages/Orders";
+import Products from "./pages/Products";  
+import Orders from "./pages/Orders";  
 import Inventory from "./pages/Inventory";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
