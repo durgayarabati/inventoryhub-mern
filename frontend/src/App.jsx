@@ -3,6 +3,7 @@ import Login from "./pages/Signup"
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Layout from "./components/Layout";
+import Inventory from "./pages/Inventory";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
