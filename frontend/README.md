@@ -1,16 +1,132 @@
-# React + Vite
+# InventoryHub 🏬  
+**Smart Inventory. Smart Business.**
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+InventoryHub is a full-stack **Inventory & Order Management System** built using the **MERN stack**.  
+It supports **role-based access (Admin / Staff)**, product management, inventory tracking, order processing, and a real-time dashboard.
 
-Currently, two official plugins are available:
+This project is designed following **industry best practices** and is suitable for **entry-level / junior MERN developer roles**.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+## 🚀 Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 🔐 Authentication & Roles
+- Secure Login & Register using **JWT**
+- **Seeded Admin (Option B – industry approach)**
+- Role-based access control:
+  - **Admin** – full access
+  - **Staff** – limited access (view & create orders)
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 📦 Product Management
+- Add / Edit / Delete products (**Admin only**)
+- View products (**Staff**)
+- SKU uniqueness
+- Soft delete (industry practice)
+- Search by name, SKU, or category
+
+---
+
+### 🧮 Inventory Management
+- Real-time inventory tracking
+- Stock **IN / OUT** operations
+- Reorder level configuration
+- Low-stock alerts (highlighted)
+- Role-based permissions
+
+---
+
+### 🧾 Order Management
+- Create orders with multiple products
+- Automatic stock reduction on order placement
+- Order status tracking:
+  - Placed
+  - Processing
+  - Completed
+  - Cancelled
+- Admin can update order status
+- Staff can view only their own orders
+
+---
+
+### 📊 Dashboard
+- Total products
+- Low stock count
+- Total orders
+- Total revenue
+- Recent orders overview
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+- React (Vite)
+- Tailwind CSS
+- React Router
+- Context API
+- Axios
+- react-hot-toast
+
+### Backend
+- Node.js
+- Express.js
+- MongoDB (Mongoose)
+- JWT Authentication
+- bcrypt (password hashing)
+
+---
+
+## 🧱 Project Architecture
+
+
+- Follows **MVC pattern**
+- Clean separation of concerns
+- Scalable & maintainable structure
+
+---
+
+## 🔑 Role Permissions
+
+| Feature | Admin | Staff |
+|------|------|------|
+| Login | ✅ | ✅ |
+| Register | ❌ (seeded) | ✅ |
+| Products CRUD | ✅ | ❌ |
+| View Products | ✅ | ✅ |
+| Inventory Adjust | ✅ | ❌ |
+| View Inventory | ✅ | ✅ |
+| Create Orders | ✅ | ✅ |
+| Update Order Status | ✅ | ❌ |
+| Dashboard Access | ✅ | ✅ |
+
+📌 Future Enhancements
+
+User management UI (Admin → Create Staff)
+
+Reports & analytics
+
+Export inventory/orders to Excel
+
+Deployment (Vercel + Render)
+
+Email notifications for low stock
+
+
+⭐ Final Note
+
+This project demonstrates real-world MERN stack development, including:
+
+Authentication
+
+Authorization
+
+Business logic
+
+Clean UI
+
+Scalable backend design
+
+Feel free to ⭐ star the repo if you find it useful!
+Thank you!

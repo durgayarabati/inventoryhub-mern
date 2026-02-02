@@ -2,8 +2,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Signup"
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
-import Layout from "./components/Layout";
+import orders from "./pages/Orders";
 import Inventory from "./pages/Inventory";
+import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
@@ -22,6 +23,8 @@ export default function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="products" element={<Products />} />
+          <Route path="inventory" element={<Inventory />} />
+          <Route path="orders" element={<Orders />} />
         </Route>
       </Routes>
     </BrowserRouter>
