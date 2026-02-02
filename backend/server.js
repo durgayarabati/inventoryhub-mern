@@ -18,13 +18,12 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // Postman
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error(`CORS blocked for origin: ${origin}`));
-    },
+    origin: [
+      "http://localhost:5173",
+      "https://inventoryhub-mern.vercel.app",
+    ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    credentials: false,
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
