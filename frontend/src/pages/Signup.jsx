@@ -4,20 +4,20 @@ import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
-  const { login, register } = useAuth();
+  const { login, register, logout } = useAuth();
   const nav = useNavigate();
 
   const [mode, setMode] = useState("login"); // "login" | "register"
-  const [role, setRole] = useState("staff"); // UI only (safe demo)
+
+  // Role dropdown ONLY for login
+  const [selectedRole, setSelectedRole] = useState("staff"); // "staff" | "admin"
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const auth = useAuth();
-  console.log(auth);
-
 
   const title = useMemo(
     () => (mode === "login" ? "Welcome back" : "Create your account"),
@@ -26,8 +26,18 @@ export default function Login() {
 
   const resetForMode = (nextMode) => {
     setMode(nextMode);
-    setLoading(false);
     setPassword("");
+    setShowPass(false);
+    setLoading(false);
+  };
+
+  const clearLocalAuth = () => {
+    // If logout exists, use it (clears state + localStorage)
+    if (typeof logout === "function") logout();
+    else {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -37,39 +47,41 @@ export default function Login() {
     try {
       if (mode === "login") {
         const data = await login(email, password);
-        toast.success(`Welcome, ${data.user?.name || "User"} ✅`);
+
+        // Role check after backend response (backend is source of truth)
+        if (selectedRole !== data?.user?.role) {
+          clearLocalAuth();
+          toast.error(
+            `This account is ${data?.user?.role}. Please choose ${data?.user?.role} role.`
+          );
+          setLoading(false);
+          return;
+        }
+
+        toast.success(`Welcome, ${data?.user?.name || "User"} ✅`);
+        nav("/");
       } else {
+        // Register: always staff (no role selection)
         if (!name.trim()) {
           toast.error("Please enter your name");
           setLoading(false);
           return;
         }
-        // role is UI-only in safe backend version:
-        const data = await register(name, email, password /* role not sent */);
-        toast.success(`Account created ✅`);
-        // Optional: show chosen role in UI toast
-        toast(`Role selected: ${role}`, { icon: "👤" });
+
+        await register(name, email, password);
+        toast.success("Account created ✅");
+        nav("/");
       }
-
-      nav("/");
     } catch (error) {
-  console.log("REGISTER ERROR:", error);
-  console.log("RESPONSE:", error?.response?.data);
-
-  toast.error(
-    error?.response?.data?.message ||
-    error?.message ||
-    "Something went wrong"
-  );
-}
- finally {
+      toast.error(error?.response?.data?.message || "Something went wrong");
+    } finally {
       setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      {/* Unique simple background */}
+      {/* Simple unique background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-24 -left-24 w-72 h-72 bg-black/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-black/10 rounded-full blur-3xl" />
@@ -82,7 +94,7 @@ export default function Login() {
             <p className="text-sm text-white/70">Inventory & Management</p>
             <h1 className="text-3xl font-bold mt-2">InventoryHub</h1>
             <p className="text-white/70 mt-4 leading-relaxed">
-              Manage products, stock, and orders with role-based access.
+              Manage products, stock and orders with role-based access.
             </p>
 
             <div className="mt-6 space-y-3">
@@ -124,37 +136,38 @@ export default function Login() {
             <p className="text-gray-500 text-sm mt-1">
               {mode === "login"
                 ? "Login to continue to dashboard"
-                : "Register and start managing inventory"}
+                : "Register to create a staff account"}
             </p>
 
             <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+              {/* Register: Name */}
               {mode === "register" && (
-                <>
-                  <Field label="Name">
-                    <input
-                      className="mt-1 w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/20"
-                      placeholder="Your name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      autoComplete="name"
-                    />
-                  </Field>
+                <Field label="Name">
+                  <input
+                    className="mt-1 w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/20"
+                    placeholder="Your name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    autoComplete="name"
+                  />
+                </Field>
+              )}
 
-                  {/* Role UI (demo) */}
-                  <Field label="Role (demo)">
-                    <select
-                      className="mt-1 w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                    >
-                      <option value="staff">Staff</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Demo only. Real admin role should be set in DB.
-                    </p>
-                  </Field>
-                </>
+              {/* Login: Role select */}
+              {mode === "login" && (
+                <Field label="Login as">
+                  <select
+                    className="mt-1 w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value)}
+                  >
+                    <option value="staff">Staff</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Role is verified after login.
+                  </p>
+                </Field>
               )}
 
               <Field label="Email">
@@ -259,4 +272,3 @@ function Feature({ icon, text }) {
     </div>
   );
 }
-
