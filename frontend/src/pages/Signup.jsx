@@ -7,6 +7,10 @@ export default function Login() {
   const { login, register, logout } = useAuth();
   const nav = useNavigate();
 
+  // Demo creds from frontend/.env
+  const demoEmail = import.meta.env.VITE_DEMO_ADMIN_EMAIL;
+  const demoPass = import.meta.env.VITE_DEMO_ADMIN_PASSWORD;
+
   const [mode, setMode] = useState("login"); // "login" | "register"
   const [selectedRole, setSelectedRole] = useState("staff"); // "staff" | "admin"
 
@@ -45,6 +49,7 @@ export default function Login() {
       if (mode === "login") {
         const data = await login(email, password);
 
+        // Role check after backend response (backend is source of truth)
         if (selectedRole !== data?.user?.role) {
           clearLocalAuth();
           toast.error(
@@ -57,6 +62,7 @@ export default function Login() {
         toast.success(`Welcome, ${data?.user?.name || "User"} ✅`);
         nav("/");
       } else {
+        // Register: always staff (no role selection)
         if (!name.trim()) {
           toast.error("Please enter your name");
           setLoading(false);
@@ -76,13 +82,13 @@ export default function Login() {
 
   return (
     <div className="min-h-[100dvh] bg-gray-50 flex items-center justify-center px-4 py-8 sm:px-6">
-      {/* Background (hide on mobile for clean look) */}
+      {/* Background blobs (hide on mobile) */}
       <div className="hidden sm:block absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-24 -left-24 w-72 h-72 bg-black/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-black/10 rounded-full blur-3xl" />
       </div>
 
-      {/* Wrapper: narrow on mobile, wide on desktop */}
+      {/* Wrapper */}
       <div className="relative w-full max-w-md md:max-w-4xl grid md:grid-cols-2 gap-5 md:gap-6">
         {/* Left brand panel */}
         <div className="hidden md:flex flex-col justify-between bg-black text-white rounded-3xl p-8 shadow">
@@ -100,32 +106,86 @@ export default function Login() {
             </div>
           </div>
 
-          <p className="text-xs text-white/60">“Smart Inventory. Smart Business.”</p>
+          <p className="text-xs text-white/60">
+            “Smart Inventory. Smart Business.”
+          </p>
         </div>
 
         {/* Right auth card */}
         <div className="bg-white rounded-3xl p-5 sm:p-7 md:p-8 shadow border">
-          {/* Tabs (mobile friendly height) */}
+          {/* Tabs */}
           <div className="flex bg-gray-100 p-1 rounded-2xl">
             <button
               type="button"
               onClick={() => resetForMode("login")}
-              className={`flex-1 py-2.5 rounded-2xl text-sm font-semibold transition ${
-                mode === "login" ? "bg-white shadow" : "text-gray-600"
-              }`}
+              className={`flex-1 py-2.5 rounded-2xl text-sm font-semibold transition ${mode === "login" ? "bg-white shadow" : "text-gray-600"
+                }`}
             >
               Login
             </button>
+
             <button
               type="button"
               onClick={() => resetForMode("register")}
-              className={`flex-1 py-2.5 rounded-2xl text-sm font-semibold transition ${
-                mode === "register" ? "bg-white shadow" : "text-gray-600"
-              }`}
+              className={`flex-1 py-2.5 rounded-2xl text-sm font-semibold transition ${mode === "register" ? "bg-white shadow" : "text-gray-600"
+                }`}
             >
               Register
             </button>
           </div>
+
+          {/* ✅ Demo Admin card (ONLY login mode) */}
+          {mode === "login" && demoEmail && demoPass && (
+            <div className="mt-4 rounded-2xl border bg-gray-50 p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-gray-700">Demo Admin</p>
+                <span className="text-xs px-2 py-1 rounded-lg border bg-white">
+                  Admin
+                </span>
+              </div>
+
+              <p className="text-xs text-gray-600 mt-2">
+                Email: <span className="font-mono">{demoEmail}</span>
+              </p>
+              <p className="text-xs text-gray-600">
+                Password: <span className="font-mono">{demoPass}</span>
+              </p>
+
+              <button
+                type="button"
+                className="mt-3 w-full px-3 py-2.5 rounded-xl bg-black text-white text-sm font-semibold"
+                onClick={async () => {
+                  try {
+                    setLoading(true);
+
+                    const data = await login(demoEmail, demoPass);
+
+                    // role safety check
+                    if (data?.user?.role !== "admin") {
+                      clearLocalAuth();
+                      toast.error("Demo admin role mismatch");
+                      setLoading(false);
+                      return;
+                    }
+
+                    toast.success(`Welcome, ${data?.user?.name || "Admin"} ✅`);
+                    nav("/");
+                  } catch (err) {
+                    toast.error(err?.response?.data?.message || "Demo login failed");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
+                {loading ? "Logging in..." : "Use Demo Admin"}
+              </button>
+
+
+              <p className="text-[11px] text-gray-500 mt-2">
+                Note: Demo credentials are for recruiter testing only.
+              </p>
+            </div>
+          )}
 
           <div className="mt-6">
             <h2 className="text-xl sm:text-2xl font-bold">{title}</h2>
@@ -136,6 +196,7 @@ export default function Login() {
             </p>
 
             <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+              {/* Register: Name */}
               {mode === "register" && (
                 <Field label="Name">
                   <input
@@ -148,6 +209,7 @@ export default function Login() {
                 </Field>
               )}
 
+              {/* Login: Role */}
               {mode === "login" && (
                 <Field label="Login as">
                   <select
@@ -182,7 +244,9 @@ export default function Login() {
                     type={showPass ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    autoComplete={mode === "login" ? "current-password" : "new-password"}
+                    autoComplete={
+                      mode === "login" ? "current-password" : "new-password"
+                    }
                   />
                   <button
                     type="button"
@@ -192,14 +256,20 @@ export default function Login() {
                     {showPass ? "Hide" : "Show"}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Minimum 6 characters.</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Minimum 6 characters.
+                </p>
               </Field>
 
               <button
                 disabled={loading}
                 className="w-full bg-black text-white py-3 rounded-xl font-semibold hover:opacity-95 disabled:opacity-60"
               >
-                {loading ? "Please wait..." : mode === "login" ? "Login" : "Create account"}
+                {loading
+                  ? "Please wait..."
+                  : mode === "login"
+                    ? "Login"
+                    : "Create account"}
               </button>
 
               <div className="text-center text-sm text-gray-600">
