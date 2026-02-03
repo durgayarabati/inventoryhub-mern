@@ -8,8 +8,6 @@ export default function Login() {
   const nav = useNavigate();
 
   const [mode, setMode] = useState("login"); // "login" | "register"
-
-  // Role dropdown ONLY for login
   const [selectedRole, setSelectedRole] = useState("staff"); // "staff" | "admin"
 
   const [name, setName] = useState("");
@@ -32,7 +30,6 @@ export default function Login() {
   };
 
   const clearLocalAuth = () => {
-    // If logout exists, use it (clears state + localStorage)
     if (typeof logout === "function") logout();
     else {
       localStorage.removeItem("token");
@@ -48,7 +45,6 @@ export default function Login() {
       if (mode === "login") {
         const data = await login(email, password);
 
-        // Role check after backend response (backend is source of truth)
         if (selectedRole !== data?.user?.role) {
           clearLocalAuth();
           toast.error(
@@ -61,7 +57,6 @@ export default function Login() {
         toast.success(`Welcome, ${data?.user?.name || "User"} ✅`);
         nav("/");
       } else {
-        // Register: always staff (no role selection)
         if (!name.trim()) {
           toast.error("Please enter your name");
           setLoading(false);
@@ -80,14 +75,15 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      {/* Simple unique background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div className="min-h-[100dvh] bg-gray-50 flex items-center justify-center px-4 py-8 sm:px-6">
+      {/* Background (hide on mobile for clean look) */}
+      <div className="hidden sm:block absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-24 -left-24 w-72 h-72 bg-black/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-black/10 rounded-full blur-3xl" />
       </div>
 
-      <div className="relative w-full max-w-4xl grid md:grid-cols-2 gap-6">
+      {/* Wrapper: narrow on mobile, wide on desktop */}
+      <div className="relative w-full max-w-md md:max-w-4xl grid md:grid-cols-2 gap-5 md:gap-6">
         {/* Left brand panel */}
         <div className="hidden md:flex flex-col justify-between bg-black text-white rounded-3xl p-8 shadow">
           <div>
@@ -108,13 +104,13 @@ export default function Login() {
         </div>
 
         {/* Right auth card */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow border">
-          {/* Tabs */}
+        <div className="bg-white rounded-3xl p-5 sm:p-7 md:p-8 shadow border">
+          {/* Tabs (mobile friendly height) */}
           <div className="flex bg-gray-100 p-1 rounded-2xl">
             <button
               type="button"
               onClick={() => resetForMode("login")}
-              className={`flex-1 py-2 rounded-2xl text-sm font-semibold transition ${
+              className={`flex-1 py-2.5 rounded-2xl text-sm font-semibold transition ${
                 mode === "login" ? "bg-white shadow" : "text-gray-600"
               }`}
             >
@@ -123,7 +119,7 @@ export default function Login() {
             <button
               type="button"
               onClick={() => resetForMode("register")}
-              className={`flex-1 py-2 rounded-2xl text-sm font-semibold transition ${
+              className={`flex-1 py-2.5 rounded-2xl text-sm font-semibold transition ${
                 mode === "register" ? "bg-white shadow" : "text-gray-600"
               }`}
             >
@@ -132,7 +128,7 @@ export default function Login() {
           </div>
 
           <div className="mt-6">
-            <h2 className="text-2xl font-bold">{title}</h2>
+            <h2 className="text-xl sm:text-2xl font-bold">{title}</h2>
             <p className="text-gray-500 text-sm mt-1">
               {mode === "login"
                 ? "Login to continue to dashboard"
@@ -140,11 +136,10 @@ export default function Login() {
             </p>
 
             <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-              {/* Register: Name */}
               {mode === "register" && (
                 <Field label="Name">
                   <input
-                    className="mt-1 w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/20"
+                    className="mt-1 w-full border rounded-xl px-3 py-2.5 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-black/20"
                     placeholder="Your name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -153,11 +148,10 @@ export default function Login() {
                 </Field>
               )}
 
-              {/* Login: Role select */}
               {mode === "login" && (
                 <Field label="Login as">
                   <select
-                    className="mt-1 w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
+                    className="mt-1 w-full border rounded-xl px-3 py-2.5 bg-white text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-black/20"
                     value={selectedRole}
                     onChange={(e) => setSelectedRole(e.target.value)}
                   >
@@ -172,7 +166,7 @@ export default function Login() {
 
               <Field label="Email">
                 <input
-                  className="mt-1 w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/20"
+                  className="mt-1 w-full border rounded-xl px-3 py-2.5 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-black/20"
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -181,9 +175,9 @@ export default function Login() {
               </Field>
 
               <Field label="Password">
-                <div className="mt-1 flex items-center gap-2 border rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-black/20">
+                <div className="mt-1 flex items-center gap-2 border rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-black/20">
                   <input
-                    className="w-full outline-none"
+                    className="w-full outline-none text-sm sm:text-base"
                     placeholder="••••••••"
                     type={showPass ? "text" : "password"}
                     value={password}
@@ -193,7 +187,7 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPass((s) => !s)}
-                    className="text-sm font-semibold text-gray-700 hover:opacity-80"
+                    className="text-sm font-semibold text-gray-700 hover:opacity-80 whitespace-nowrap"
                   >
                     {showPass ? "Hide" : "Show"}
                   </button>
@@ -203,13 +197,9 @@ export default function Login() {
 
               <button
                 disabled={loading}
-                className="w-full bg-black text-white py-2.5 rounded-xl font-semibold hover:opacity-95 disabled:opacity-60"
+                className="w-full bg-black text-white py-3 rounded-xl font-semibold hover:opacity-95 disabled:opacity-60"
               >
-                {loading
-                  ? "Please wait..."
-                  : mode === "login"
-                  ? "Login"
-                  : "Create account"}
+                {loading ? "Please wait..." : mode === "login" ? "Login" : "Create account"}
               </button>
 
               <div className="text-center text-sm text-gray-600">

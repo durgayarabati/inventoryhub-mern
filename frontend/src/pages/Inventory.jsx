@@ -11,49 +11,53 @@ export default function Inventory() {
   const [q, setQ] = useState("");
   const [lowOnly, setLowOnly] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState([]);
 
   // Modal state
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState(null); // inventory item
+  const [selected, setSelected] = useState(null);
   const [tab, setTab] = useState("adjust"); // adjust | settings
 
   // Adjust form
-  const [type, setType] = useState("in"); // in/out
+  const [type, setType] = useState("in");
   const [amount, setAmount] = useState("");
 
   // Settings form
   const [reorderLevel, setReorderLevel] = useState("");
   const [location, setLocation] = useState("");
 
+  const lowStock = (inv) => (inv.quantity ?? 0) <= (inv.reorderLevel ?? 0);
+
   const filtered = useMemo(() => {
-    if (!q.trim()) return items;
+    const list = lowOnly ? items.filter(lowStock) : items;
+    if (!q.trim()) return list;
+
     const s = q.trim().toLowerCase();
-    return items.filter((x) => {
+    return list.filter((x) => {
       const name = x.product?.name?.toLowerCase() || "";
       const sku = x.product?.sku?.toLowerCase() || "";
       const cat = x.product?.category?.toLowerCase() || "";
       return name.includes(s) || sku.includes(s) || cat.includes(s);
     });
-  }, [items, q]);
+  }, [items, q, lowOnly]);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (isRefresh = false) => {
+    isRefresh ? setRefreshing(true) : setLoading(true);
     try {
-      const url = lowOnly ? "/inventory?lowStock=true" : "/inventory";
-      const res = await API.get(url);
+      const res = await API.get("/inventory");
       setItems(res.data.items || []);
     } catch (e) {
       toast.error(e?.response?.data?.message || "Failed to load inventory");
     } finally {
-      setLoading(false);
+      isRefresh ? setRefreshing(false) : setLoading(false);
     }
   };
 
   useEffect(() => {
-    load();
+    load(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lowOnly]);
+  }, []);
 
   const openModal = (inv) => {
     setSelected(inv);
@@ -73,26 +77,21 @@ export default function Inventory() {
     setAmount("");
   };
 
-  const lowStock = (inv) => (inv.quantity ?? 0) <= (inv.reorderLevel ?? 0);
-
   const submitAdjust = async (e) => {
     e.preventDefault();
     if (!selected?.product?._id) return;
 
     const qty = Number(amount);
-    if (!qty || qty <= 0) {
-      toast.error("Amount must be > 0");
-      return;
-    }
+    if (!qty || qty <= 0) return toast.error("Amount must be > 0");
 
     try {
       await API.post(`/inventory/${selected.product._id}/adjust`, {
         type,
-        amount: qty
+        amount: qty,
       });
       toast.success(`Stock ${type === "in" ? "added" : "reduced"} ✅`);
       closeModal();
-      await load();
+      await load(true);
     } catch (e2) {
       toast.error(e2?.response?.data?.message || "Stock update failed");
     }
@@ -111,66 +110,78 @@ export default function Inventory() {
     try {
       await API.put(`/inventory/${selected.product._id}`, {
         reorderLevel: rl,
-        location
+        location,
       });
       toast.success("Inventory settings updated ✅");
       closeModal();
-      await load();
+      await load(true);
     } catch (e2) {
       toast.error(e2?.response?.data?.message || "Update failed");
     }
   };
 
+  const lowCount = useMemo(() => items.filter(lowStock).length, [items]);
+
   return (
-    <div>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Inventory</h2>
+          <h2 className="text-2xl font-extrabold tracking-tight">Inventory</h2>
           <p className="text-sm text-gray-600 mt-1">
             View stock, low-stock alerts, and adjust quantities.
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-          <input
-            className="border rounded-xl px-3 py-2 w-full sm:w-64"
-            placeholder="Search name / sku / category..."
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
+        {/* Controls */}
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center w-full lg:w-auto">
+          <div className="relative w-full sm:w-72">
+            <input
+              className="w-full border rounded-xl pl-10 pr-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
+              placeholder="Search name / sku / category..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <span className="absolute left-3 top-2.5 text-gray-400">🔎</span>
+          </div>
 
           <button
             onClick={() => setLowOnly((v) => !v)}
-            className={`px-4 py-2 rounded-xl border font-semibold ${
-              lowOnly ? "bg-black text-white" : "bg-white hover:bg-gray-50"
+            className={`px-4 py-2 rounded-xl border font-semibold transition w-full sm:w-auto ${
+              lowOnly
+                ? "bg-black text-white border-black"
+                : "bg-white hover:bg-gray-50"
             }`}
           >
             {lowOnly ? "Low Stock: ON" : "Low Stock: OFF"}
           </button>
 
           <button
-            onClick={load}
-            className="px-4 py-2 rounded-xl bg-black text-white"
+            onClick={() => load(true)}
+            disabled={loading || refreshing}
+            className="px-4 py-2 rounded-xl bg-black text-white hover:opacity-90 disabled:opacity-60 w-full sm:w-auto inline-flex items-center justify-center gap-2"
           >
-            Refresh
+            {refreshing ? (
+              <>
+                <Spinner /> Refreshing
+              </>
+            ) : (
+              "Refresh"
+            )}
           </button>
         </div>
       </div>
 
       {/* Summary cards */}
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Card title="Total Items" value={items.length} />
-        <Card
-          title="Low Stock"
-          value={items.filter(lowStock).length}
-          hint="qty ≤ reorder level"
-        />
-        <Card title="Role" value={user?.role || "-"} />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <SummaryCard title="Total Items" value={items.length} />
+        <SummaryCard title="Low Stock" value={lowCount} hint="qty ≤ reorder level" />
+        <SummaryCard title="Role" value={user?.role || "-"} />
       </div>
 
-      {/* Table */}
-      <div className="mt-4 bg-white border rounded-2xl overflow-hidden">
-        <div className="p-3 border-b flex items-center justify-between">
+      {/* List/Table Wrapper */}
+      <div className="bg-white border rounded-2xl overflow-hidden">
+        <div className="p-4 border-b flex items-center justify-between">
           <p className="text-sm text-gray-600">
             {loading ? "Loading..." : `${filtered.length} records`}
           </p>
@@ -179,74 +190,131 @@ export default function Inventory() {
           </p>
         </div>
 
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100 text-left">
-            <tr>
-              <th className="p-3">Product</th>
-              <th className="p-3">SKU</th>
-              <th className="p-3">Category</th>
-              <th className="p-3">Quantity</th>
-              <th className="p-3">Reorder</th>
-              <th className="p-3">Location</th>
-              <th className="p-3">Status</th>
-              {isAdmin && <th className="p-3 text-right">Actions</th>}
-            </tr>
-          </thead>
+        {/* Loading */}
+        {loading ? (
+          <InventorySkeleton />
+        ) : (
+          <>
+            {/* Mobile view: cards */}
+            <div className="md:hidden divide-y">
+              {filtered.map((inv) => {
+                const isLow = lowStock(inv);
+                return (
+                  <div key={inv._id} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">
+                          {inv.product?.name || "—"}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {inv.product?.sku || "—"} • {inv.product?.category || "—"}
+                        </p>
 
-          <tbody>
-            {filtered.map((inv) => {
-              const isLow = lowStock(inv);
-              return (
-                <tr
-                  key={inv._id}
-                  className={`border-t hover:bg-gray-50 ${
-                    isLow ? "bg-red-50/40" : ""
-                  }`}
-                >
-                  <td className="p-3 font-medium">
-                    {inv.product?.name || "—"}
-                    {isLow && (
-                      <span className="ml-2 text-xs px-2 py-1 rounded-lg border border-red-200 text-red-700 bg-white">
-                        LOW
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-3">{inv.product?.sku || "—"}</td>
-                  <td className="p-3">{inv.product?.category || "—"}</td>
-                  <td className="p-3 font-semibold">{inv.quantity}</td>
-                  <td className="p-3">{inv.reorderLevel}</td>
-                  <td className="p-3">{inv.location || "Main"}</td>
-                  <td className="p-3">
-                    <span className="px-2 py-1 rounded-lg text-xs border bg-white">
-                      {inv.product?.status || "—"}
-                    </span>
-                  </td>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Pill label={`Qty: ${inv.quantity ?? 0}`} strong />
+                          <Pill label={`Reorder: ${inv.reorderLevel ?? 0}`} />
+                          <Pill label={`Loc: ${inv.location || "Main"}`} />
+                          <Pill label={inv.product?.status || "—"} />
+                          {isLow && <Pill label="LOW" danger />}
+                        </div>
+                      </div>
 
-                  {isAdmin && (
-                    <td className="p-3">
-                      <div className="flex justify-end">
+                      {isAdmin && (
                         <button
-                          className="px-3 py-1 rounded-lg border hover:bg-white"
                           onClick={() => openModal(inv)}
+                          className="shrink-0 px-3 py-2 rounded-xl border hover:bg-gray-50 text-sm font-semibold"
                         >
                           Manage
                         </button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
 
-            {!loading && filtered.length === 0 && (
-              <tr>
-                <td className="p-6 text-gray-500 text-center" colSpan={isAdmin ? 8 : 7}>
+              {filtered.length === 0 && (
+                <div className="p-6 text-gray-500 text-center">
                   No inventory records
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop view: table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-left">
+                  <tr className="text-gray-600">
+                    <th className="p-4">Product</th>
+                    <th className="p-4">SKU</th>
+                    <th className="p-4">Category</th>
+                    <th className="p-4">Quantity</th>
+                    <th className="p-4">Reorder</th>
+                    <th className="p-4">Location</th>
+                    <th className="p-4">Status</th>
+                    {isAdmin && <th className="p-4 text-right">Actions</th>}
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filtered.map((inv) => {
+                    const isLow = lowStock(inv);
+                    return (
+                      <tr
+                        key={inv._id}
+                        className={`border-t hover:bg-gray-50 ${
+                          isLow ? "bg-red-50/40" : ""
+                        }`}
+                      >
+                        <td className="p-4 font-medium">
+                          {inv.product?.name || "—"}
+                          {isLow && (
+                            <span className="ml-2 text-xs px-2 py-1 rounded-lg border border-red-200 text-red-700 bg-white">
+                              LOW
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-4">{inv.product?.sku || "—"}</td>
+                        <td className="p-4">{inv.product?.category || "—"}</td>
+                        <td className="p-4 font-semibold">{inv.quantity ?? 0}</td>
+                        <td className="p-4">{inv.reorderLevel ?? 0}</td>
+                        <td className="p-4">{inv.location || "Main"}</td>
+                        <td className="p-4">
+                          <span className="px-2 py-1 rounded-lg text-xs border bg-white">
+                            {inv.product?.status || "—"}
+                          </span>
+                        </td>
+
+                        {isAdmin && (
+                          <td className="p-4">
+                            <div className="flex justify-end">
+                              <button
+                                className="px-3 py-2 rounded-xl border hover:bg-white text-sm font-semibold"
+                                onClick={() => openModal(inv)}
+                              >
+                                Manage
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+
+                  {filtered.length === 0 && (
+                    <tr>
+                      <td
+                        className="p-8 text-gray-500 text-center"
+                        colSpan={isAdmin ? 8 : 7}
+                      >
+                        No inventory records
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Admin Modal */}
@@ -304,24 +372,24 @@ export default function Inventory() {
                   />
                 </Field>
 
-                <div className="flex justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="px-4 py-2 rounded-xl border hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="px-4 py-2 rounded-xl bg-black text-white"
-                  >
-                    Apply
-                  </button>
+                {/* Sticky actions for mobile */}
+                <div className="sticky bottom-0 bg-white pt-3 pb-1">
+                  <div className="flex flex-col sm:flex-row justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      className="px-4 py-2 rounded-xl border hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button className="px-4 py-2 rounded-xl bg-black text-white">
+                      Apply
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Low stock rows are highlighted in red.
+                  </p>
                 </div>
-
-                <p className="text-xs text-gray-500">
-                  If stock is low, it will be highlighted in red.
-                </p>
               </form>
             ) : (
               <form className="mt-4 space-y-3" onSubmit={submitSettings}>
@@ -344,17 +412,19 @@ export default function Inventory() {
                   />
                 </Field>
 
-                <div className="flex justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="px-4 py-2 rounded-xl border hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button className="px-4 py-2 rounded-xl bg-black text-white">
-                    Save
-                  </button>
+                <div className="sticky bottom-0 bg-white pt-3 pb-1">
+                  <div className="flex flex-col sm:flex-row justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      className="px-4 py-2 rounded-xl border hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button className="px-4 py-2 rounded-xl bg-black text-white">
+                      Save
+                    </button>
+                  </div>
                 </div>
               </form>
             )}
@@ -365,12 +435,17 @@ export default function Inventory() {
   );
 }
 
-function Card({ title, value, hint }) {
+/* ---------- UI bits ---------- */
+
+function SummaryCard({ title, value, hint }) {
   return (
-    <div className="bg-white border rounded-2xl p-4">
+    <div className="bg-white border rounded-2xl p-4 sm:p-5">
       <p className="text-sm text-gray-500">{title}</p>
-      <p className="text-2xl font-bold mt-1">{value}</p>
+      <p className="text-2xl font-extrabold mt-1 text-gray-900">{value}</p>
       {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
+      <div className="mt-3 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+        <div className="h-full w-2/3 bg-gray-900/20" />
+      </div>
     </div>
   );
 }
@@ -378,8 +453,41 @@ function Card({ title, value, hint }) {
 function Field({ label, children }) {
   return (
     <div>
-      <label className="text-sm font-medium">{label}</label>
+      <label className="text-sm font-semibold">{label}</label>
       <div className="mt-1">{children}</div>
     </div>
+  );
+}
+
+function Pill({ label, strong, danger }) {
+  const base = "text-xs px-2.5 py-1 rounded-xl border inline-flex items-center";
+  const style = danger
+    ? "bg-red-50 text-red-700 border-red-200"
+    : strong
+    ? "bg-gray-900 text-white border-gray-900"
+    : "bg-white text-gray-700 border-gray-200";
+  return <span className={`${base} ${style}`}>{label}</span>;
+}
+
+function InventorySkeleton() {
+  return (
+    <div className="p-4 space-y-3">
+      {Array.from({ length: 7 }).map((_, i) => (
+        <div key={i} className="flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <div className="h-4 w-56 bg-gray-200 rounded animate-pulse" />
+            <div className="h-3 w-40 bg-gray-200 rounded mt-2 animate-pulse" />
+          </div>
+          <div className="h-6 w-20 bg-gray-200 rounded-xl animate-pulse" />
+          <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <span className="inline-block h-4 w-4 rounded-full border-2 border-white/60 border-t-white animate-spin" />
   );
 }
