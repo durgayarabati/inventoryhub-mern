@@ -5,7 +5,7 @@ const {
   updateInventorySettings,
   adjustStock,
   backfillInventory,
-} = require("../controllers/inventory.controller");
+} = require("../controllers/inventoryController");
 
 const { protect } = require("../middleware/auth");
 const { adminOnly } = require("../middleware/adminOnly");
