@@ -7,7 +7,7 @@ const {
   backfillInventory,
 } = require("../controllers/inventoryController");
 
-const { protect } = require("../middleware/auth");
+const { protect } = require("../middleware/authMiddleware");
 const { adminOnly } = require("../middleware/adminOnly");
 
 router.use(protect);
