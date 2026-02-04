@@ -7,8 +7,8 @@ const {
   deleteProduct,
 } = require("../controllers/productController");
 
-const { protect } = require("../middleware/auth");      // your JWT middleware
-const { adminOnly } = require("../middleware/adminOnly"); // your role middleware
+
+const { protect, adminOnly } = require("../middleware/authMiddleware");
 
 router.use(protect);
 
