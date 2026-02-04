@@ -1,21 +1,25 @@
-const express = require("express");
+const router = require("express").Router();
 const {
   getInventory,
   getInventoryByProduct,
   updateInventorySettings,
-  adjustStock
-} = require("../controllers/inventoryController");
+  adjustStock,
+  backfillInventory,
+} = require("../controllers/inventory.controller");
 
-const { protect, adminOnly } = require("../middleware/authMiddleware");
+const { protect } = require("../middleware/auth");
+const { adminOnly } = require("../middleware/adminOnly");
 
-const router = express.Router();
+router.use(protect);
 
-// Admin + Staff can view
-router.get("/", protect, getInventory);
-router.get("/:productId", protect, getInventoryByProduct);
+// ✅ backfill MUST come before /:productId
+router.post("/backfill", adminOnly, backfillInventory);
 
-// Admin can update settings and adjust stock
-router.put("/:productId", protect, adminOnly, updateInventorySettings);
-router.post("/:productId/adjust", protect, adminOnly, adjustStock);
+router.get("/", getInventory);
+router.get("/:productId", getInventoryByProduct);
+
+// admin
+router.put("/:productId", adminOnly, updateInventorySettings);
+router.post("/:productId/adjust", adminOnly, adjustStock);
 
 module.exports = router;

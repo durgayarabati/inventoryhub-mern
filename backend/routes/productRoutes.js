@@ -1,23 +1,23 @@
-const express = require("express");
+const router = require("express").Router();
 const {
   createProduct,
   getProducts,
   getProductById,
   updateProduct,
-  deleteProduct
-} = require("../controllers/productController");
+  deleteProduct,
+} = require("../controllers/products.controller");
 
-const { protect, adminOnly } = require("../middleware/authMiddleware");
+const { protect } = require("../middleware/auth");      // your JWT middleware
+const { adminOnly } = require("../middleware/adminOnly"); // your role middleware
 
-const router = express.Router();
+router.use(protect);
 
-// Staff/Admin can read
-router.get("/", protect, getProducts);
-router.get("/:id", protect, getProductById);
+router.get("/", getProducts);
+router.get("/:id", getProductById);
 
-// Admin only write
-router.post("/", protect, adminOnly, createProduct);
-router.put("/:id", protect, adminOnly, updateProduct);
-router.delete("/:id", protect, adminOnly, deleteProduct);
+// admin
+router.post("/", adminOnly, createProduct);
+router.put("/:id", adminOnly, updateProduct);
+router.delete("/:id", adminOnly, deleteProduct);
 
 module.exports = router;

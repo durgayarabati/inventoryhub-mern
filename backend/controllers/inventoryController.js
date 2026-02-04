@@ -4,7 +4,14 @@ const Product = require("../models/Product");
 // Helper: create inventory record if missing
 const ensureInventory = async (productId) => {
   let inv = await Inventory.findOne({ product: productId });
-  if (!inv) inv = await Inventory.create({ product: productId, quantity: 0, reorderLevel: 10 });
+  if (!inv) {
+    inv = await Inventory.create({
+      product: productId,
+      quantity: 0,
+      reorderLevel: 10,
+      location: "Main",
+    });
+  }
   return inv;
 };
 
@@ -20,15 +27,13 @@ const getInventory = async (req, res) => {
       filter.$expr = { $lte: ["$quantity", "$reorderLevel"] };
     }
 
-    let query = Inventory.find(filter)
+    const items = await Inventory.find(filter)
       .populate({
         path: "product",
         match: { isDeleted: false },
-        select: "name sku category status"
+        select: "name sku category status",
       })
       .sort({ updatedAt: -1 });
-
-    const items = await query;
 
     // Remove null populated products (soft-deleted products)
     let cleaned = items.filter((x) => x.product);
@@ -56,12 +61,14 @@ const getInventoryByProduct = async (req, res) => {
   try {
     const { productId } = req.params;
 
-    // validate product exists
     const product = await Product.findOne({ _id: productId, isDeleted: false });
     if (!product) return res.status(404).json({ message: "Product not found" });
 
     const inv = await ensureInventory(productId);
-    const populated = await Inventory.findById(inv._id).populate("product", "name sku category status");
+    const populated = await Inventory.findById(inv._id).populate(
+      "product",
+      "name sku category status"
+    );
 
     return res.json(populated);
   } catch (err) {
@@ -71,7 +78,6 @@ const getInventoryByProduct = async (req, res) => {
 
 // PUT /api/inventory/:productId
 // Admin only
-// Update reorderLevel / location
 const updateInventorySettings = async (req, res) => {
   try {
     const { productId } = req.params;
@@ -88,7 +94,11 @@ const updateInventorySettings = async (req, res) => {
     inv.updatedBy = req.user?._id;
 
     await inv.save();
-    const populated = await Inventory.findById(inv._id).populate("product", "name sku category status");
+
+    const populated = await Inventory.findById(inv._id).populate(
+      "product",
+      "name sku category status"
+    );
 
     return res.json({ message: "Inventory settings updated", inventory: populated });
   } catch (err) {
@@ -98,15 +108,15 @@ const updateInventorySettings = async (req, res) => {
 
 // POST /api/inventory/:productId/adjust
 // Admin only
-// Stock IN / Stock OUT
 const adjustStock = async (req, res) => {
   try {
     const { productId } = req.params;
-    const { type, amount } = req.body; // type: "in" | "out", amount: number
+    const { type, amount } = req.body;
 
     if (!type || !["in", "out"].includes(type)) {
       return res.status(400).json({ message: "type must be 'in' or 'out'" });
     }
+
     const qty = Number(amount);
     if (!qty || qty <= 0) return res.status(400).json({ message: "amount must be > 0" });
 
@@ -125,12 +135,53 @@ const adjustStock = async (req, res) => {
 
     const lowStock = inv.quantity <= inv.reorderLevel;
 
-    const populated = await Inventory.findById(inv._id).populate("product", "name sku category status");
+    const populated = await Inventory.findById(inv._id).populate(
+      "product",
+      "name sku category status"
+    );
 
     return res.json({
       message: `Stock ${type === "in" ? "added" : "reduced"} successfully`,
       lowStock,
-      inventory: populated
+      inventory: populated,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+// ✅ POST /api/inventory/backfill
+// Admin only
+const backfillInventory = async (req, res) => {
+  try {
+    const products = await Product.find({ isDeleted: false }).select("_id");
+
+    let created = 0;
+    let already = 0;
+
+    for (const p of products) {
+      const exists = await Inventory.findOne({ product: p._id }).select("_id");
+      if (exists) {
+        already++;
+        continue;
+      }
+
+      await Inventory.create({
+        product: p._id,
+        quantity: 0,
+        reorderLevel: 10,
+        location: "Main",
+        updatedBy: req.user?._id,
+      });
+
+      created++;
+    }
+
+    return res.json({
+      message: "Inventory backfill completed ✅",
+      totalProducts: products.length,
+      created,
+      already,
     });
   } catch (err) {
     return res.status(500).json({ message: err.message });
@@ -141,5 +192,6 @@ module.exports = {
   getInventory,
   getInventoryByProduct,
   updateInventorySettings,
-  adjustStock
+  adjustStock,
+  backfillInventory,
 };

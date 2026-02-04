@@ -1,21 +1,27 @@
 const Product = require("../models/Product");
+const Inventory = require("../models/Inventory");
+
+// Helper: create inventory record if missing
+const ensureInventory = async (productId) => {
+  let inv = await Inventory.findOne({ product: productId });
+  if (!inv) {
+    inv = await Inventory.create({
+      product: productId,
+      quantity: 0,
+      reorderLevel: 10,
+      location: "Main",
+    });
+  }
+  return inv;
+};
 
 // POST /api/products
 // Admin only
 const createProduct = async (req, res) => {
   try {
-    const { name, sku, category, price, cost, unit, description, imageUrl, status } = req.body;
-
-    if (!name || !sku || price === undefined) {
-      return res.status(400).json({ message: "name, sku, price are required" });
-    }
-
-    const exists = await Product.findOne({ sku: sku.trim().toUpperCase() });
-    if (exists) return res.status(409).json({ message: "SKU already exists" });
-
-    const product = await Product.create({
-      name: name.trim(),
-      sku: sku.trim().toUpperCase(),
+    const {
+      name,
+      sku,
       category,
       price,
       cost,
@@ -23,8 +29,32 @@ const createProduct = async (req, res) => {
       description,
       imageUrl,
       status,
-      createdBy: req.user?._id
+    } = req.body;
+
+    if (!name || !sku || price === undefined) {
+      return res.status(400).json({ message: "name, sku, price are required" });
+    }
+
+    const normalizedSku = sku.trim().toUpperCase();
+
+    const exists = await Product.findOne({ sku: normalizedSku, isDeleted: false });
+    if (exists) return res.status(409).json({ message: "SKU already exists" });
+
+    const product = await Product.create({
+      name: name.trim(),
+      sku: normalizedSku,
+      category,
+      price,
+      cost,
+      unit,
+      description,
+      imageUrl,
+      status,
+      createdBy: req.user?._id,
     });
+
+    // ✅ KEY FIX: create inventory row immediately
+    await ensureInventory(product._id);
 
     return res.status(201).json({ message: "Product created", product });
   } catch (err) {
@@ -33,17 +63,15 @@ const createProduct = async (req, res) => {
 };
 
 // GET /api/products?q=&page=&limit=&status=&category=
-// Admin + Staff (protected)
 const getProducts = async (req, res) => {
   try {
     const { q, page = 1, limit = 10, status, category } = req.query;
 
     const filters = { isDeleted: false };
-
     if (status) filters.status = status;
     if (category) filters.category = category;
 
-    // Search (name/sku/category text index)
+    // Text search (name/sku/category)
     if (q && q.trim()) {
       filters.$text = { $search: q.trim() };
     }
@@ -53,11 +81,8 @@ const getProducts = async (req, res) => {
     const skip = (pageNum - 1) * limitNum;
 
     const [items, total] = await Promise.all([
-      Product.find(filters)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNum),
-      Product.countDocuments(filters)
+      Product.find(filters).sort({ createdAt: -1 }).skip(skip).limit(limitNum),
+      Product.countDocuments(filters),
     ]);
 
     return res.json({
@@ -65,7 +90,7 @@ const getProducts = async (req, res) => {
       limit: limitNum,
       total,
       totalPages: Math.ceil(total / limitNum),
-      items
+      items,
     });
   } catch (err) {
     return res.status(500).json({ message: err.message });
@@ -73,7 +98,6 @@ const getProducts = async (req, res) => {
 };
 
 // GET /api/products/:id
-// Admin + Staff (protected)
 const getProductById = async (req, res) => {
   try {
     const product = await Product.findOne({ _id: req.params.id, isDeleted: false });
@@ -96,7 +120,8 @@ const updateProduct = async (req, res) => {
     if (updates.sku) {
       const dup = await Product.findOne({
         sku: updates.sku,
-        _id: { $ne: req.params.id }
+        _id: { $ne: req.params.id },
+        isDeleted: false,
       });
       if (dup) return res.status(409).json({ message: "SKU already exists" });
     }
@@ -108,6 +133,9 @@ const updateProduct = async (req, res) => {
     );
 
     if (!product) return res.status(404).json({ message: "Product not found" });
+
+    // Optional safety (useful for old data)
+    await ensureInventory(product._id);
 
     return res.json({ message: "Product updated", product });
   } catch (err) {
@@ -127,6 +155,7 @@ const deleteProduct = async (req, res) => {
 
     if (!product) return res.status(404).json({ message: "Product not found" });
 
+    // Inventory records can remain; inventory list hides soft-deleted products via populate match
     return res.json({ message: "Product deleted (soft)", productId: product._id });
   } catch (err) {
     return res.status(500).json({ message: err.message });
@@ -138,5 +167,5 @@ module.exports = {
   getProducts,
   getProductById,
   updateProduct,
-  deleteProduct
+  deleteProduct,
 };
