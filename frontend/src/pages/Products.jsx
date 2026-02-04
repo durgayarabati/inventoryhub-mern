@@ -40,12 +40,21 @@ export default function Products() {
   const canSubmit = useMemo(() => {
     if (!form.name.trim()) return false;
     if (!form.sku.trim()) return false;
+
+    // ✅ price must not be empty
+    if (String(form.price).trim() === "") return false;
+
     const p = Number(form.price);
-    if (!Number.isFinite(p) || p < 0) return false;
-    if (form.cost !== "" && (!Number.isFinite(Number(form.cost)) || Number(form.cost) < 0))
-      return false;
+    if (!Number.isFinite(p) || p <= 0) return false; // use <=0 if you want minimum 1
+
+    if (String(form.cost).trim() !== "") {
+      const c = Number(form.cost);
+      if (!Number.isFinite(c) || c < 0) return false;
+    }
+
     return true;
   }, [form]);
+
 
   const load = async (isRefresh = false, query = q, status = statusFilter) => {
     isRefresh ? setRefreshing(true) : setLoading(true);
